@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'arnold = arnold:main',
+            'arnold2 = arnold:main',
         ]
     }
 )
