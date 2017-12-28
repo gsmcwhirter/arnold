@@ -9,7 +9,7 @@ except ImportError:
 
 setup(
     name='arnold2',
-    version='0.1.0',
+    version='0.1.1',
     description='Simple migrations for python',
     long_description='',
     keywords='python, migrations',

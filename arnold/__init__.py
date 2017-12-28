@@ -26,7 +26,7 @@ class Terminator:
 
     async def prepare(self):
         async with self.db_client.transaction() as conn:
-            conn.execute("""
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration (
                   id SERIAL NOT NULL,
                   migration VARCHAR(255) NOT NULL INDEX,
