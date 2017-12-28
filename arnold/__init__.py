@@ -29,10 +29,14 @@ class Terminator:
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration (
                   id SERIAL NOT NULL,
-                  migration VARCHAR(255) NOT NULL INDEX,
+                  migration VARCHAR(255) NOT NULL,
                   applied_on TIMESTAMP NOT NULL DEFAULT NOW(),
                   PRIMARY KEY (id),
                 );
+            """)
+
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_migration_migration ON migration (migration);
             """)
 
     def _retreive_filenames(self):
