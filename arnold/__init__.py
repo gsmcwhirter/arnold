@@ -136,7 +136,7 @@ class Terminator:
         latest_migration = await self._get_latest_migration()
 
         if latest_migration:
-            migration_index = filenames.index(latest_migration.migration)
+            migration_index = filenames.index(latest_migration['migration'])
 
             if migration_index == len(filenames) - 1 and \
                 self.direction == 'up':
@@ -189,8 +189,8 @@ def status(args):
     latest_migration = Terminator(args).get_latest_migration()
     if latest_migration:
         print("Migration {0} run at {1}.".format(
-            colored(latest_migration.migration, "blue"),
-            colored(latest_migration.applied_on, "green"),
+            colored(latest_migration['migration'], "blue"),
+            colored(latest_migration['applied_on'], "green"),
         ))
     else:
         print("No migrations currently run.")
