@@ -31,7 +31,7 @@ class Terminator:
                   id SERIAL NOT NULL,
                   migration VARCHAR(255) NOT NULL,
                   applied_on TIMESTAMP NOT NULL DEFAULT NOW(),
-                  PRIMARY KEY (id),
+                  PRIMARY KEY (id)
                 );
             """)
 
