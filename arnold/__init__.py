@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 
@@ -6,7 +7,6 @@ import argparse
 from termcolor import colored
 
 from arnold.exceptions import DirectionNotFoundException
-from arnold.models import Migration
 from importlib import import_module
 
 
@@ -18,25 +18,22 @@ class Terminator:
         self.count = getattr(args, 'count', 0)
         self.folder = getattr(args, 'folder', None)
 
-        self.prepare_config()
-        self.database = self.config.database
-        self.prepare_model()
-
-    def prepare_config(self):
+        self.direction = None
         self.config = import_module(self.folder)
+        self.db_client = self.config.db_client
+        self.loop = asyncio.get_event_loop()
+        self.loop.run_until_complete(self.prepare())
 
-    def prepare_model(self):
-        self.model = Migration
-        self.model._meta.database = self.database
-
-        self._setup_table()
-
-    def _setup_table(self):
-        if self.model.table_exists():
-            return False
-        else:
-            self.model.create_table()
-        return True
+    async def prepare(self):
+        async with self.db_client.transaction() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS migration (
+                  id SERIAL NOT NULL,
+                  migration VARCHAR(255) NOT NULL INDEX,
+                  applied_on TIMESTAMP NOT NULL DEFAULT NOW(),
+                  PRIMARY KEY (id),
+                );
+            """)
 
     def _retreive_filenames(self):
         files = os.listdir('{0}/{1}'.format(self.folder, 'migrations'))
@@ -49,11 +46,10 @@ class Terminator:
             filenames.append(splits[0])
         return sorted(filenames, key=lambda fname: int(fname.split("_")[0]))
 
-    def _perform_single_migration(self, migration):
+    async def _perform_single_migration(self, migration):
         """Runs a single migration method (up or down)"""
-        migration_exists = self.model.select().where(
-            self.model.migration == migration
-        ).limit(1).exists()
+        rows = await self.db_client.fetch("""SELECT id FROM migration WHERE migration.migration = $1 LIMIT 1""", migration)
+        migration_exists = len(rows) == 1
 
         if migration_exists and self.direction == "up":
             print("Migration {0} already exists, {1}".format(
@@ -71,7 +67,7 @@ class Terminator:
         ))
 
         if self.fake:
-            self._update_migration_table(migration)
+            await self._update_migration_table(migration)
             print(
                 "Faking {0}".format(colored(migration, "yellow"))
             )
@@ -85,8 +81,8 @@ class Terminator:
             migration_module = import_module(module_name)
 
             if hasattr(migration_module, self.direction):
-                getattr(migration_module, self.direction)()
-                self._update_migration_table(migration)
+                await getattr(migration_module, self.direction)()
+                await self._update_migration_table(migration)
             else:
                 raise DirectionNotFoundException
 
@@ -95,18 +91,21 @@ class Terminator:
         ))
         return True
 
-    def _update_migration_table(self, migration):
+    async def _update_migration_table(self, migration):
         if self.direction == "up":
-            self.model.insert(migration=migration).execute()
+            await self.db_client.execute("""INSERT INTO migration (migration) VALUES ($1)""", migration)
         else:
-            self.model.delete().where(
-                self.model.migration == migration
-            ).execute()
+            await self.db_client.execute("""DELETE FROM migration WHERE migration.migration = $1 LIMIT 1""", migration)
 
     def get_latest_migration(self):
-        return self.model.select().order_by(
-            self.model.migration.desc()
-        ).first()
+        return self.loop.run_until_complete(self._get_latest_migration())
+
+    async def _get_latest_migration(self):
+        rows = await self.db_client.fetch("""SELECT * FROM migration ORDER BY migration DESC LIMIT 1""")
+        if rows:
+            return rows[0]
+        else:
+            return None
 
     def perform_migrations(self, direction):
         """
@@ -114,6 +113,10 @@ class Terminator:
         required. If no migration is passed, loop through list and find
         the migrations that need to be run.
         """
+        return self.loop.run_until_complete(self._perform_migrations(direction))
+
+    async def _perform_migrations(self, direction):
+
         self.direction = direction
 
         filenames = self._retreive_filenames()
@@ -126,7 +129,7 @@ class Terminator:
 
         start = 0
 
-        latest_migration = self.get_latest_migration()
+        latest_migration = await self._get_latest_migration()
 
         if latest_migration:
             migration_index = filenames.index(latest_migration.migration)
@@ -166,7 +169,7 @@ class Terminator:
             )
 
         for migration in migrations_to_complete:
-            self._perform_single_migration(migration)
+            await self._perform_single_migration(migration)
         return True
 
 

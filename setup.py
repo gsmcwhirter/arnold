@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-install_requires = ['peewee', 'termcolor']
+install_requires = ['termcolor']
 
 try:
     import importlib
@@ -8,14 +8,14 @@ except ImportError:
     install_requires.append('importlib')
 
 setup(
-    name='arnold',
-    version='0.4.1',
-    description='Simple migrations for python ORMs',
+    name='arnold2',
+    version='0.1.0',
+    description='Simple migrations for python',
     long_description='',
-    keywords='python, peewee, migrations',
-    author='Cameron A. Stitt',
-    author_email='cameron@castitt.com',
-    url='https://github.com/cam-stitt/arnold',
+    keywords='python, migrations',
+    author='Gregory McWhirter',
+    author_email='greg@ideafreemonoid.org',
+    url='https://github.com/gsmcwhirter/arnold',
     license='BSD',
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     zip_safe=False,
